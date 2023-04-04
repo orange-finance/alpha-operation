@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "googleapis": "^114.0.0",
+    "util": "^0.12.5",
+    "dotenv": "^16.0.3",
+    "ethers": "^6.2.3"
+  }
+}
