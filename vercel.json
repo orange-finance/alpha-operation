@@ -12,7 +12,7 @@
   ],
   "crons": [
     {
-      "path": "/src/main",
+      "path": "/cron/index",
       "schedule": "5 * * * *"
     }
   ]
