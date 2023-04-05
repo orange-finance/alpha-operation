@@ -4,25 +4,36 @@ const fs = require("fs");
 const ethers = require("ethers");
 require("dotenv").config();
 
-const vaultAbi = require("./abi/vault.json");
-const erc20Abi = require("./abi/erc20.json");
-const vaultAddress = "0x8163546af0a7716604150aFc59A8DAAa5C2E7EEB";
-const aaveEthDebtTokenAddress = "0x0c84331e39d6658Cd6e6b9ba04736cC4c4734351";
-const aaveUsdcCollateralTokenAddress = "0x625E7708f30cA75bfd92586e17077590C60eb4cD";
+const vaultAbi = require("../abi/vault.json");
+const erc20Abi = require("../abi/erc20.json");
+const vaultAddress = process.env.VAULT_ADDRESS;
+const aaveEthDebtTokenAddress = process.env.AAVE_ETH_DEBT_TOKEN_ADDRESS;
+const aaveUsdcCollateralTokenAddress = process.env.AAVE_USDC_COLLATERAL_TOKEN_ADDRESS;
 
 const provider = new ethers.JsonRpcProvider(process.env.PROVIDER_URL);
-const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+const signer = new ethers.Wallet(process.env.WALLET_PRIVATE_KEY, provider);
 
 const vault = new ethers.Contract(vaultAddress, vaultAbi, provider);
 const collateralToken = new ethers.Contract(aaveUsdcCollateralTokenAddress, erc20Abi, provider);
 const debtToken = new ethers.Contract(aaveEthDebtTokenAddress, erc20Abi, provider);
 
 const auth = new google.auth.GoogleAuth({
-  keyFile: "./credentials.json",
+  credentials: {
+    type: process.env.TYPE,
+    project_id: process.env.PROJECT_ID,
+    private_key_id: process.env.PRIVATE_KEY_ID,
+    private_key: process.env.PRIVATE_KEY,
+    client_email: process.env.CLIENT_EMAIL,
+    client_id: process.env.CLIENT_ID,
+    auth_uri: process.env.AUTH_URI,
+    token_uri: process.env.TOKEN_URI,
+    auth_provider_x509_cert_url: process.env.AUTH_PROVIDER_X509_CERT_URL,
+    client_x509_cert_url: process.env.CLIENT_X509_CERT_URL,
+  },
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 const sheets = google.sheets({ version: "v4", auth });
-const sheetId = "1C0ixjXgLbfnKUMXZs0hHZ5-6HqPLU5IC22VUS43MRas";
+const sheetId = process.env.SHEET_ID;
 
 //===== Vault Interaction =====//
 async function readVault() {
