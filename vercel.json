@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/src/main.js",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
