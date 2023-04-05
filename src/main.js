@@ -167,5 +167,6 @@ async function main() {
     await executeRebalance(configs);
   }
 }
+module.exports = { main };
 
 main();
