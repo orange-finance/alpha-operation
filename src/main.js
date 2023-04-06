@@ -1,22 +1,30 @@
 const { google } = require("googleapis");
-const { promisify } = require("util");
-const fs = require("fs");
 const ethers = require("ethers");
 require("dotenv").config();
 
-const vaultAbi = require("../abi/vault.json");
-const erc20Abi = require("../abi/erc20.json");
-const vaultAddress = process.env.VAULT_ADDRESS;
-const aaveEthDebtTokenAddress = process.env.AAVE_ETH_DEBT_TOKEN_ADDRESS;
-const aaveUsdcCollateralTokenAddress = process.env.AAVE_USDC_COLLATERAL_TOKEN_ADDRESS;
-
+//SC Setup
 const provider = new ethers.JsonRpcProvider(process.env.PROVIDER_URL);
 const signer = new ethers.Wallet(process.env.WALLET_PRIVATE_KEY, provider);
 
-const vault = new ethers.Contract(vaultAddress, vaultAbi, provider);
-const collateralToken = new ethers.Contract(aaveUsdcCollateralTokenAddress, erc20Abi, provider);
-const debtToken = new ethers.Contract(aaveEthDebtTokenAddress, erc20Abi, provider);
+const vaultAbi = require("../abi/vault.json");
+const aTokenAbi = require("../abi/aToken.json");
+const variableDebtTokenAbi = require("../abi/variableDebtToken.json");
+const aavePoolAbi = require("../abi/aavePool.json");
+const uniswapPoolAbi = require("../abi/uniswapPool.json");
 
+const vaultAddress = process.env.VAULT_ADDRESS;
+const aaveUsdcCollateralTokenAddress = process.env.AAVE_USDC_COLLATERAL_TOKEN_ADDRESS;
+const aaveEthDebtTokenAddress = process.env.AAVE_ETH_DEBT_TOKEN_ADDRESS;
+const aavePoolAddress = process.env.AAVE_POOL_ADDRESS;
+const uniswapPoolAddress = process.env.UNISWAP_POOL_ADDRESS;
+
+const vault = new ethers.Contract(vaultAddress, vaultAbi, provider);
+const collateralToken = new ethers.Contract(aaveUsdcCollateralTokenAddress, aTokenAbi, provider);
+const debtToken = new ethers.Contract(aaveEthDebtTokenAddress, variableDebtTokenAbi, provider);
+const aavePool = new ethers.Contract(aavePoolAddress, aavePoolAbi, provider);
+const uniswapPool = new ethers.Contract(uniswapPoolAddress, uniswapPoolAbi, provider);
+
+//Google Setup
 const auth = new google.auth.GoogleAuth({
   credentials: {
     type: process.env.TYPE,
@@ -35,37 +43,7 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: "v4", auth });
 const sheetId = process.env.SHEET_ID;
 
-//===== Vault Interaction =====//
-async function readVault() {
-  const totalAssets = await vault["totalAssets"]();
-  const stoplossUpperTick = await vault["stoplossUpperTick"]();
-  const upperTick = await vault["upperTick"]();
-  const lowerTick = await vault["lowerTick"]();
-  const stoplossLowerTick = await vault["stoplossLowerTick"]();
-  const underlyingBalances = await vault["getUnderlyingBalances"]();
-  const ethPosition = underlyingBalances[0];
-  const usdcCollateral = await collateralToken["balanceOf"](vaultAddress);
-  const ethDebt = await debtToken["balanceOf"](vaultAddress);
-
-  const log = [
-    [totalAssets.toString()],
-    [stoplossUpperTick.toString()],
-    [upperTick.toString()],
-    [lowerTick.toString()],
-    [stoplossLowerTick.toString()],
-    [underlyingBalances[0].toString()], //Uni ETH
-    [underlyingBalances[1].toString()], //Uni USDC
-    [ethDebt.toString()], //Aave ETH Debt
-    [usdcCollateral.toString()], //Aave USDC Collateral
-    [underlyingBalances[2].toString()], //Uni Fee ETH
-    [underlyingBalances[3].toString()], //Uni Fee USDC
-    [underlyingBalances[4].toString()], //Contract ETH
-    [underlyingBalances[5].toString()], //Contract USDC
-  ];
-
-  return log;
-}
-
+//===== Contract Interaction =====//
 async function executeRebalance(configs) {
   try {
     //get min new liquidity
@@ -104,6 +82,19 @@ async function executeRebalance(configs) {
   }
 }
 
+async function getFeeGrowthInside(tokenNumber, currentTick, upperTick, lowerTick) {
+  const feeGrowthGlobal = await eval(`uniswapPool.feeGrowthGlobal${tokenNumber}X128()`);
+  const feeGrowthOutsideUpper = (await uniswapPool.ticks(upperTick))[2 + tokenNumber];
+  const feeGrowthOutsideLower = (await uniswapPool.ticks(lowerTick))[2 + tokenNumber];
+
+  const feeGrowthAbove = currentTick < upperTick ? feeGrowthOutsideUpper : feeGrowthGlobal - feeGrowthOutsideUpper;
+  const feeGrowthBelow = currentTick >= lowerTick ? feeGrowthOutsideLower : feeGrowthGlobal - feeGrowthOutsideLower;
+
+  const feeGrowthInside = feeGrowthGlobal - feeGrowthBelow - feeGrowthAbove;
+
+  return feeGrowthInside;
+}
+
 //===== SpreadSheet Interaction =====//
 async function readSheet(range) {
   const response = await sheets.spreadsheets.values.get({
@@ -127,13 +118,62 @@ async function writeSheet(range, data) {
 }
 
 async function logData(action) {
-  let data = await readVault();
+  const totalAssets = await vault["totalAssets"]();
+  const stoplossUpperTick = await vault["stoplossUpperTick"]();
+  const upperTick = await vault["upperTick"]();
+  const lowerTick = await vault["lowerTick"]();
+  const stoplossLowerTick = await vault["stoplossLowerTick"]();
+  const underlyingBalances = await vault["getUnderlyingBalances"]();
+  const usdcCollateral = await collateralToken["balanceOf"](vaultAddress);
+  const ethDebt = await debtToken["balanceOf"](vaultAddress);
+
+  const currentTick = (await uniswapPool.slot0())[1];
+  const underlyingCollateralAddresss = await collateralToken.UNDERLYING_ASSET_ADDRESS(); //USDC Address
+  const underlyingDebtAddress = await debtToken.UNDERLYING_ASSET_ADDRESS(); //WETH Address
+
+  /**
+    Aave
+    struct ReserveData {
+        ReserveConfigurationMap configuration;
+        uint128 liquidityIndex;
+        uint128 currentLiquidityRate;
+        uint128 variableBorrowIndex;
+      ...
+    }
+   */
+  const liquidityIndex = (await aavePool.getReserveData(underlyingCollateralAddresss))[1];
+  const variableBorrowIndex = (await aavePool.getReserveData(underlyingDebtAddress))[3];
+
+  const feeGrowthInside0 = await getFeeGrowthInside(0, currentTick, upperTick, lowerTick);
+  const feeGrowthInside1 = await getFeeGrowthInside(1, currentTick, upperTick, lowerTick);
+
+  let data = [
+    [Date.now()],
+    [action],
+    [totalAssets.toString()],
+    [stoplossUpperTick.toString()],
+    [upperTick.toString()],
+    [lowerTick.toString()],
+    [stoplossLowerTick.toString()],
+    [underlyingBalances[0].toString()], //Uni ETH
+    [underlyingBalances[1].toString()], //Uni USDC
+    [ethDebt.toString()], //Aave ETH Debt
+    [usdcCollateral.toString()], //Aave USDC Collateral
+    [underlyingBalances[2].toString()], //Uni Fee ETH
+    [underlyingBalances[3].toString()], //Uni Fee USDC
+    [underlyingBalances[4].toString()], //Contract ETH
+    [underlyingBalances[5].toString()], //Contract USDC
+    [currentTick.toString()],
+    [liquidityIndex.toString()], //USDC liquidityIndex
+    [variableBorrowIndex.toString()], //ETH variableBorrowingIndex
+    [feeGrowthInside0.toString()],
+    [feeGrowthInside1.toString()],
+  ];
 
   const latestRow = await readSheet("Log!C1");
-  data.unshift([Date.now()], [action]);
 
   //log data
-  const range = `Log!B${latestRow}:P${latestRow}`;
+  const range = `Log!B${latestRow}:U${latestRow}`;
 
   const request = {
     spreadsheetId: sheetId,
