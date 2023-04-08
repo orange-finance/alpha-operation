@@ -55,7 +55,7 @@ async function executeRebalance(configs) {
       configs[4][0] //hedge ratio);
     );
 
-    const targetLiquidity = (newLiquidity * 99n) / 100n;
+    const targetLiquidity = (newLiquidity * 95n) / 100n;
 
     const data = vault.interface.encodeFunctionData("rebalance", [
       configs[2][0], //lower tick
@@ -128,6 +128,16 @@ async function logData(action) {
   const ethDebt = await debtToken["balanceOf"](vaultAddress);
 
   const currentTick = (await uniswapPool.slot0())[1];
+
+  const hash = ethers.solidityPackedKeccak256(
+    ["address", "int24", "int24"],
+    [vaultAddress, lowerTick.toString(), upperTick.toString()]
+  );
+  const posiiton = await uniswapPool.positions(hash);
+  const liquidity = posiiton[0];
+  const feeGrowthInside0Last = posiiton[1];
+  const feeGrowthInside1Last = posiiton[2];
+
   const underlyingCollateralAddresss = await collateralToken.UNDERLYING_ASSET_ADDRESS(); //USDC Address
   const underlyingDebtAddress = await debtToken.UNDERLYING_ASSET_ADDRESS(); //WETH Address
 
@@ -153,8 +163,10 @@ async function logData(action) {
     [totalAssets.toString()],
     [stoplossUpperTick.toString()],
     [upperTick.toString()],
+    [currentTick.toString()],
     [lowerTick.toString()],
     [stoplossLowerTick.toString()],
+    [liquidity.toString()],
     [underlyingBalances[0].toString()], //Uni ETH
     [underlyingBalances[1].toString()], //Uni USDC
     [ethDebt.toString()], //Aave ETH Debt
@@ -163,17 +175,18 @@ async function logData(action) {
     [underlyingBalances[3].toString()], //Uni Fee USDC
     [underlyingBalances[4].toString()], //Contract ETH
     [underlyingBalances[5].toString()], //Contract USDC
-    [currentTick.toString()],
     [liquidityIndex.toString()], //USDC liquidityIndex
     [variableBorrowIndex.toString()], //ETH variableBorrowingIndex
     [feeGrowthInside0.toString()],
+    [feeGrowthInside0Last.toString()],
     [feeGrowthInside1.toString()],
+    [feeGrowthInside1Last.toString()],
   ];
 
   const latestRow = await readSheet("Log!C1");
 
   //log data
-  const range = `Log!B${latestRow}:U${latestRow}`;
+  const range = `Log!B${latestRow}:X${latestRow}`;
 
   const request = {
     spreadsheetId: sheetId,
@@ -195,8 +208,8 @@ async function main() {
   const data = await logData("Log"); //log current state
 
   //update Spreadsheet
-  const input = [data[2], data[3], data[4], data[5], data[6], data[7], data[9]];
-  await writeSheet("Rebalance!H2:H8", input);
+  const input = [data[2], data[3], data[4], data[5], data[6], data[7], data[9], data[11]];
+  await writeSheet("Rebalance!H2:H9", input);
 
   //rebalance when applicable
   const isRebalance = await readSheet("Rebalance!A5");
