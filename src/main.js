@@ -46,6 +46,7 @@ const sheetId = process.env.SHEET_ID;
 //===== Contract Interaction =====//
 async function executeRebalance(configs) {
   try {
+    console.log("rebalance start.", configs);
     //get min new liquidity
     const newLiquidity = await vault.getRebalancedLiquidity(
       configs[2][0], //lower tick
@@ -54,8 +55,10 @@ async function executeRebalance(configs) {
       configs[0][0], //stoploss upper tick
       configs[4][0] //hedge ratio);
     );
+    console.log("newLiquidity", newLiquidity);
 
     const targetLiquidity = (newLiquidity * 95n) / 100n;
+    console.log("targetLiquidity", targetLiquidity);
 
     const data = vault.interface.encodeFunctionData("rebalance", [
       configs[2][0], //lower tick
@@ -77,7 +80,7 @@ async function executeRebalance(configs) {
 
     await logData("Rebalance");
   } catch (error) {
-    console.error("Rebalance Failed:", error);
+    console.log("Rebalance Failed:", error);
     await logData("Rebalance Failed");
   }
 }
