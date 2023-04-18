@@ -209,6 +209,7 @@ async function logData(action) {
 //========================================//
 async function main() {
   const data = await logData("Log"); //log current state
+  console.log(data);
 
   //update Spreadsheet
   const input = [data[2], data[3], data[4], data[5], data[6], data[7], data[9], data[11]];
