@@ -133,10 +133,10 @@ async function logData(action) {
     ["address", "int24", "int24"],
     [vaultAddress, lowerTick.toString(), upperTick.toString()]
   );
-  const posiiton = await uniswapPool.positions(hash);
-  const liquidity = posiiton[0];
-  const feeGrowthInside0Last = posiiton[1];
-  const feeGrowthInside1Last = posiiton[2];
+  const position = await uniswapPool.positions(hash);
+  const liquidity = position[0];
+  const feeGrowthInside0Last = position[1];
+  const feeGrowthInside1Last = position[2];
 
   const underlyingCollateralAddresss = await collateralToken.UNDERLYING_ASSET_ADDRESS(); //USDC Address
   const underlyingDebtAddress = await debtToken.UNDERLYING_ASSET_ADDRESS(); //WETH Address
