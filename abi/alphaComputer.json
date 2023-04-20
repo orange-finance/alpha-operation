@@ -1,0 +1,76 @@
+[
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_vault", "type": "address" },
+      { "internalType": "address", "name": "_params", "type": "address" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      { "internalType": "int24", "name": "_lowerTick", "type": "int24" },
+      { "internalType": "int24", "name": "_upperTick", "type": "int24" },
+      { "internalType": "uint256", "name": "_targetHedgeRatio", "type": "uint256" }
+    ],
+    "name": "computeApplyHedgeRatio",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "int24", "name": "_lowerTick", "type": "int24" },
+      { "internalType": "int24", "name": "_upperTick", "type": "int24" }
+    ],
+    "name": "computeMaxHedgeRatio",
+    "outputs": [{ "internalType": "uint256", "name": "maxHedgeRatio_", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "int24", "name": "_lowerTick", "type": "int24" },
+      { "internalType": "int24", "name": "_upperTick", "type": "int24" },
+      { "internalType": "uint256", "name": "_ltv", "type": "uint256" },
+      { "internalType": "uint256", "name": "_hedgeRatio", "type": "uint256" }
+    ],
+    "name": "computeRebalancePosition",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "debtAmount0", "type": "uint256" },
+          { "internalType": "uint256", "name": "collateralAmount1", "type": "uint256" },
+          { "internalType": "uint256", "name": "token0Balance", "type": "uint256" },
+          { "internalType": "uint256", "name": "token1Balance", "type": "uint256" }
+        ],
+        "internalType": "struct IOrangeAlphaVault.Positions",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "int24", "name": "_upperTick", "type": "int24" }],
+    "name": "getLtvByRange",
+    "outputs": [{ "internalType": "uint256", "name": "ltv_", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "params",
+    "outputs": [{ "internalType": "contract IOrangeAlphaParameters", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vault",
+    "outputs": [{ "internalType": "contract OrangeAlphaVault", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

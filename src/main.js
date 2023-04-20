@@ -7,18 +7,21 @@ const provider = new ethers.JsonRpcProvider(process.env.PROVIDER_URL);
 const signer = new ethers.Wallet(process.env.WALLET_PRIVATE_KEY, provider);
 
 const vaultAbi = require("../abi/vault.json");
+const computerAbi = require("../abi/alphaComputer.json");
 const aTokenAbi = require("../abi/aToken.json");
 const variableDebtTokenAbi = require("../abi/variableDebtToken.json");
 const aavePoolAbi = require("../abi/aavePool.json");
 const uniswapPoolAbi = require("../abi/uniswapPool.json");
 
 const vaultAddress = process.env.VAULT_ADDRESS;
+const computerAddress = process.env.COMPUTER_ADDRESS;
 const aaveUsdcCollateralTokenAddress = process.env.AAVE_USDC_COLLATERAL_TOKEN_ADDRESS;
 const aaveEthDebtTokenAddress = process.env.AAVE_ETH_DEBT_TOKEN_ADDRESS;
 const aavePoolAddress = process.env.AAVE_POOL_ADDRESS;
 const uniswapPoolAddress = process.env.UNISWAP_POOL_ADDRESS;
 
 const vault = new ethers.Contract(vaultAddress, vaultAbi, provider);
+const computer = new ethers.Contract(computerAddress, computerAbi, provider);
 const collateralToken = new ethers.Contract(aaveUsdcCollateralTokenAddress, aTokenAbi, provider);
 const debtToken = new ethers.Contract(aaveEthDebtTokenAddress, variableDebtTokenAbi, provider);
 const aavePool = new ethers.Contract(aavePoolAddress, aavePoolAbi, provider);
@@ -211,16 +214,33 @@ async function main() {
   const data = await logData("Log"); //log current state
   console.log(data);
 
-  //update Spreadsheet
+  //1. Input Current Position from Vault
   const input = [data[2], data[3], data[4], data[5], data[6], data[7], data[9], data[11]];
-  await writeSheet("Rebalance!H2:H9", input);
+  await writeSheet("Rebalance!F3:F10", input);
 
-  //rebalance when applicable
-  const isRebalance = await readSheet("Rebalance!A5");
+  //2. import calculated New Position
+  //nothing to do from this side.
+
+  //3. Calculate ticks, and get apply hedge ratio
+  const upperTick = (await readSheet("Rebalance!P5"))[0].toString();
+  const lowerTick = (await readSheet("Rebalance!P7"))[0].toString();
+  const targetHedgeRatio = (await readSheet("Rebalance!P9"))[0].toString();
+
+  console.log(upperTick);
+  console.log(lowerTick);
+  console.log(targetHedgeRatio);
+
+  const applyHedgeRatio = (await computer.computeApplyHedgeRatio(lowerTick, upperTick, targetHedgeRatio)).toString();
+  console.log(applyHedgeRatio);
+  await writeSheet("Rebalance!P10", [[applyHedgeRatio]]);
+
+  //4. Rebalance Judgement
+  const isRebalance = await readSheet("Rebalance!G21");
   console.log(isRebalance[0]);
 
   if (isRebalance[0] == "TRUE") {
-    const configs = await readSheet("Rebalance!E2:E6");
+    //5. Rebalance when applicable
+    const configs = await readSheet("Rebalance!K15:K19");
     await executeRebalance(configs);
   }
 }
