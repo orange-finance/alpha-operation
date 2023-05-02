@@ -239,11 +239,11 @@ async function main() {
   console.log(isRebalance[0]);
 
   if (isRebalance[0] == "TRUE") {
+    console.log("Rebalance");
     //5. Rebalance when applicable
     const configs = await readSheet("Rebalance!K15:K19");
     await executeRebalance(configs);
   }
 }
-module.exports = { main };
 
-main();
+module.exports = { main };
