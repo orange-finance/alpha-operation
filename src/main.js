@@ -125,6 +125,7 @@ async function writeSheet(range, data) {
 
 async function logData(action) {
   const totalAssets = await vault["totalAssets"]();
+  const totalShares = await vault["totalSupply"]();
   const stoplossUpperTick = await vault["stoplossUpperTick"]();
   const upperTick = await vault["upperTick"]();
   const lowerTick = await vault["lowerTick"]();
@@ -167,6 +168,7 @@ async function logData(action) {
     [Date.now()],
     [action],
     [totalAssets.toString()],
+    [totalShares.toString()],
     [stoplossUpperTick.toString()],
     [upperTick.toString()],
     [currentTick.toString()],
@@ -192,7 +194,7 @@ async function logData(action) {
   const latestRow = await readSheet("Log!C1");
 
   //log data
-  const range = `Log!B${latestRow}:X${latestRow}`;
+  const range = `Log!B${latestRow}:Y${latestRow}`;
 
   const request = {
     spreadsheetId: sheetId,
@@ -215,7 +217,7 @@ async function main() {
   console.log(data);
 
   //1. Input Current Position from Vault
-  const input = [data[2], data[3], data[4], data[5], data[6], data[7], data[9], data[11]];
+  const input = [data[2], data[4], data[5], data[6], data[7], data[8], data[10], data[12]];
   await writeSheet("Rebalance!F3:F10", input);
 
   //2. import calculated New Position
