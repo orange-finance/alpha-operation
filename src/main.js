@@ -84,7 +84,7 @@ async function executeRebalance(configs) {
     await logData("Rebalance");
   } catch (error) {
     console.log("Rebalance Failed:", error);
-    await logData("Rebalance Failed", error);
+    await logData(`Rebalance Failed: ${error}`);
   }
 }
 
